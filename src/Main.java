@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class Main {
     private static final byte SIZE_QUEUE = 100;
-    private static final int SIZE_TEXT = 10_000;
+    private static final int SIZE_TEXT = 100;
     private static final int LENGTH_TEXT = 100_000;
     private static final String LETTERS = "abc";
 
@@ -21,6 +21,10 @@ public class Main {
     private static volatile int maxB = 0;
     private static volatile int maxC = 0;
 
+    private static String maxStrA = "";
+    private static String maxStrB = "";
+    private static String maxStrC = "";
+
     public static void main(String[] args) throws InterruptedException {
         Thread threadQueue = new Thread(() -> {
             for (int i = 0; i < SIZE_TEXT; i++) {
@@ -29,20 +33,24 @@ public class Main {
                     queueB.put(generateText(LETTERS, LENGTH_TEXT));
                     queueC.put(generateText(LETTERS, LENGTH_TEXT));
                 } catch (InterruptedException e) {
-                    System.err.println(e.getMessage());
+                    Thread.currentThread().interrupt();
                 }
             }
         });
-        System.out.println("Создание Queues.");
+        System.out.println("\nСоздание Queues.");
         threadQueue.start();
         System.out.println("Старт!");
-//        threadQueue.join();
+        try {
+            threadQueue.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         System.out.println("Queues созданы.");
-        Thread.sleep(1000);
         System.out.println("Считаю...");
+        Thread.sleep(1000);
 
-        new Thread(() -> CalcSymbol(queueA, 'a')).start(); // 'a'
-//        threadCountA.start();
+        Thread threadCountA = new Thread(() -> CalcSymbol(queueA, 'a')); // 'a'
+        threadCountA.start();
 
         Thread threadCountB = new Thread(() -> CalcSymbol(queueB, 'b')); // 'b'
         threadCountB.start();
@@ -50,60 +58,63 @@ public class Main {
         Thread threadCountC = new Thread(() -> CalcSymbol(queueC, 'c')); // 'c'
         threadCountC.start();
 
-//        threadCountA.join();
+        try {
+        threadCountA.join();
         threadCountB.join();
         threadCountC.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
 
-        System.out.printf("\nВ строке с максимальным количеством символа 'a': %d шт.", maxA);
-        System.out.printf("\nВ строке с максимальным количеством символа 'b': %d шт.", maxB);
-        System.out.printf("\nВ строке с максимальным количеством символа 'c': %d шт.\n", maxC);
+        Thread.sleep(1000);
+        System.out.printf("\nСтрока с максимальным количеством символа 'a' (%d шт.):\n", maxA);
+        System.out.println(maxStrA);
+        System.out.printf("\nСтрока с максимальным количеством символа 'b' (%d шт.):\n", maxB);
+        System.out.println(maxStrB);
+        System.out.printf("\nСтрока с максимальным количеством символа 'c' (%d шт.):\n", maxC);
+        System.out.println(maxStrC);
     }
 
     public static void CalcSymbol(BlockingQueue<String> queue, char symbol) {
-        String s;
+        String s = "";
 
         for (int i = 0; i < SIZE_TEXT; i++) {
             try {
                 s = queue.take();
                 for (char c : s.toCharArray()) {
                     if (c == symbol) {
-                        incrementCount(symbol);
+                        switch (symbol) {
+                            case 'a' -> ATOMIC_A.incrementAndGet();
+                            case 'b' -> ATOMIC_B.incrementAndGet();
+                            case 'c' -> ATOMIC_C.incrementAndGet();
+                        }
                     }
                 }
             } catch (InterruptedException e) {
-                System.err.println(e.getMessage());
+                Thread.currentThread().interrupt();
             }
-            ifSymbol(symbol);
-        }
-    }
-
-    public static void incrementCount(char c) {
-        switch (c) {
-            case 'a' -> ATOMIC_A.incrementAndGet();
-            case 'b' -> ATOMIC_B.incrementAndGet();
-            case 'c' -> ATOMIC_C.incrementAndGet();
-        }
-    }
-
-    public static void ifSymbol(char c) {
-        switch (c) {
-            case 'a': {
-                if (maxA < ATOMIC_A.get()) {
-                    maxA = ATOMIC_A.get();
+            switch (symbol) {
+                case 'a': {
+                    if (maxA < ATOMIC_A.get()) {
+                        maxA = ATOMIC_A.get();
+                        maxStrA = s;
+                    }
+                    ATOMIC_A.set(0);
                 }
-                ATOMIC_A.set(0);
-            }
-            case 'b': {
-                if (maxB < ATOMIC_B.get()) {
-                    maxB = ATOMIC_B.get();
+                case 'b': {
+                    if (maxB < ATOMIC_B.get()) {
+                        maxB = ATOMIC_B.get();
+                        maxStrB = s;
+                    }
+                    ATOMIC_B.set(0);
                 }
-                ATOMIC_B.set(0);
-            }
-            case 'c':{
-                if (maxC < ATOMIC_C.get()) {
-                    maxC = ATOMIC_C.get();
+                case 'c': {
+                    if (maxC < ATOMIC_C.get()) {
+                        maxC = ATOMIC_C.get();
+                        maxStrC = s;
+                    }
+                    ATOMIC_C.set(0);
                 }
-                ATOMIC_C.set(0);
             }
         }
     }
