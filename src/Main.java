@@ -51,17 +51,14 @@ public class Main {
 
         Thread threadCountA = new Thread(() -> CalcSymbol(queueA, 'a')); // 'a'
         threadCountA.start();
-
         Thread threadCountB = new Thread(() -> CalcSymbol(queueB, 'b')); // 'b'
         threadCountB.start();
-
         Thread threadCountC = new Thread(() -> CalcSymbol(queueC, 'c')); // 'c'
         threadCountC.start();
-
         try {
-        threadCountA.join();
-        threadCountB.join();
-        threadCountC.join();
+            threadCountA.join();
+            threadCountB.join();
+            threadCountC.join();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
